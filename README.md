@@ -16,6 +16,10 @@ The app is split into independent stages so each part can be scaled, updated, or
 
 Code-oriented content is skipped during extraction, including common environments such as `verbatim`, `lstlisting`, `minted`, `alltt`, and inline code commands such as `\verb`, `\lstinline`, `\mintinline`, and `\texttt`.
 
+The checker intentionally runs in a strict mode. It flags generic academic phrasing, AI-like transition density, vague scholarly nouns, broad unsupported claims, passive templates, long polished sentences, and repeated document-level wording. Concrete technical text with numbers, datasets, citations, and specific measurements is scored lower.
+
+The remover rewrites only unprotected natural-language spans. If a risky sentence contains `\cite`, `\ref`, math, or other protected LaTeX, the surrounding prose can be rewritten while the protected LaTeX is preserved in place.
+
 ## Code Structure
 
 - `app.js` wires the UI to the workflow.
