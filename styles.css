@@ -123,115 +123,11 @@ h1 {
   color: #fff;
 }
 
-.workflow-panel {
-  display: grid;
-  gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.93);
-  padding: 14px 16px;
-  box-shadow: 0 12px 28px rgba(23, 33, 43, 0.06);
-}
-
-.workflow-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.workflow-head h2 {
-  font-size: 1rem;
-}
-
-.workflow-head span {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.workflow-steps {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.workflow-steps li {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: 8px;
-  row-gap: 2px;
-  align-items: center;
-  min-height: 64px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfcfd;
-  padding: 10px;
-}
-
-.workflow-steps span {
-  display: grid;
-  grid-row: 1 / span 2;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: #edf2f4;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 850;
-}
-
-.workflow-steps strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.86rem;
-}
-
-.workflow-steps small {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.76rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workflow-steps li.running {
-  border-color: var(--accent);
-  background: var(--soft);
-}
-
-.workflow-steps li.running span {
-  background: var(--accent);
-  color: #fff;
-}
-
-.workflow-steps li.done span {
-  background: #2d6a35;
-  color: #fff;
-}
-
-.workflow-steps li.warning span {
-  background: #d3a41f;
-  color: #fff;
-}
-
-.workflow-steps li.error span {
-  background: #d35747;
-  color: #fff;
-}
-
 .input-output-grid {
   display: grid;
   grid-template-columns: minmax(340px, 0.82fr) minmax(440px, 1.18fr);
   gap: 18px;
-  min-height: calc(100vh - 276px);
+  min-height: calc(100vh - 178px);
 }
 
 .panel {
@@ -563,8 +459,7 @@ select {
   }
 
   .input-output-grid,
-  .comparison-grid,
-  .workflow-steps {
+  .comparison-grid {
     grid-template-columns: 1fr;
   }
 

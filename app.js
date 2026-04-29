@@ -26,8 +26,6 @@ const elements = {
   rewriteControls: document.querySelector("#rewriteControls"),
   rewriteDepth: document.querySelector("#rewriteDepth"),
   includeMedium: document.querySelector("#includeMedium"),
-  workflowSummary: document.querySelector("#workflowSummary"),
-  workflowSteps: document.querySelector("#workflowSteps"),
 };
 
 const state = {
@@ -51,23 +49,6 @@ function setMode(mode) {
   elements.outputSubtitle.textContent = checker
     ? "Highlighted LaTeX preview and risk score."
     : "Full LaTeX output with only flagged sentences rewritten.";
-  resetWorkflow();
-}
-
-function resetWorkflow() {
-  elements.workflowSummary.textContent = "Ready to process";
-  for (const item of elements.workflowSteps.querySelectorAll("li")) {
-    item.className = "";
-    item.querySelector("small").textContent = "Waiting";
-  }
-}
-
-function updateWorkflowStep(step, status, detail) {
-  const item = elements.workflowSteps.querySelector(`[data-step="${step}"]`);
-  if (!item) return;
-  item.className = status;
-  item.querySelector("small").textContent = detail || status;
-  elements.workflowSummary.textContent = detail || status;
 }
 
 function renderWarnings(warnings) {
@@ -126,7 +107,6 @@ function clearOutput() {
   elements.flaggedCount.textContent = "0";
   elements.protectedCount.textContent = "0";
   elements.latexStatus.textContent = "Ready";
-  resetWorkflow();
 }
 
 async function run() {
@@ -148,11 +128,6 @@ async function run() {
         depth: elements.rewriteDepth.value,
         includeMedium: elements.includeMedium.checked,
       },
-      {
-        onStep: (step, status, detail) => {
-          if (runId === state.latestRunId) updateWorkflowStep(step, status, detail);
-        },
-      },
     );
 
     if (runId !== state.latestRunId) return;
@@ -167,7 +142,6 @@ async function run() {
       elements.scoreValue.textContent = `${analysis.overall}%`;
       elements.flaggedCount.textContent = String(analysis.flagged.length);
       elements.latexStatus.textContent = `Scanned ${analysis.sentences.length} sentences`;
-      elements.workflowSummary.textContent = `Complete: ${analysis.flagged.length} flagged`;
       state.lastOutput = text;
       return;
     }
@@ -176,10 +150,8 @@ async function run() {
     elements.rewrittenOutput.textContent = rewrite.output;
     state.lastOutput = rewrite.output;
     elements.latexStatus.textContent = rewrite.changes ? `${rewrite.changes} changed` : "No changes";
-    elements.workflowSummary.textContent = `Complete: ${rewrite.changes} changed`;
   } catch (error) {
     elements.latexStatus.textContent = "Workflow error";
-    elements.workflowSummary.textContent = "Stopped by an error";
     elements.warningBox.hidden = false;
     elements.warningBox.textContent = `Error: ${error.message}`;
   } finally {
