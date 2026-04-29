@@ -26,6 +26,20 @@
           </button>
         </div>
 
+        <section class="workflow-panel" aria-label="Processing workflow">
+          <div class="workflow-head">
+            <h2>Workflow</h2>
+            <span id="workflowSummary">Ready to process</span>
+          </div>
+          <ol class="workflow-steps" id="workflowSteps">
+            <li data-step="validate"><span>1</span><strong>Validate LaTeX</strong><small>Waiting</small></li>
+            <li data-step="protect"><span>2</span><strong>Protect Structure</strong><small>Waiting</small></li>
+            <li data-step="extract"><span>3</span><strong>Extract Text</strong><small>Waiting</small></li>
+            <li data-step="score"><span>4</span><strong>Score Risk</strong><small>Waiting</small></li>
+            <li data-step="output"><span>5</span><strong>Build Output</strong><small>Waiting</small></li>
+          </ol>
+        </section>
+
         <section class="input-output-grid">
           <div class="panel input-panel">
             <div class="panel-head">
@@ -104,6 +118,6 @@
         </section>
       </section>
     </main>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>
