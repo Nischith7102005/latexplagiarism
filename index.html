@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LaTeX Plagiarism Checker & Remover</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="LaTeX plagiarism tool">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">LaTeX-safe analysis</p>
+            <h1>LaTeX Plagiarism Checker & Remover</h1>
+          </div>
+          <div class="status-pill" id="latexStatus">Ready</div>
+        </header>
+
+        <div class="mode-row" role="tablist" aria-label="Mode">
+          <button class="mode-button active" id="checkerTab" type="button" role="tab" aria-selected="true">
+            Checker
+          </button>
+          <button class="mode-button" id="removerTab" type="button" role="tab" aria-selected="false">
+            Remover
+          </button>
+        </div>
+
+        <section class="input-output-grid">
+          <div class="panel input-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Input LaTeX</h2>
+                <p>Paste a full document, section, or paragraph.</p>
+              </div>
+              <button class="icon-button" id="loadSample" type="button" title="Load sample">↺</button>
+            </div>
+            <textarea
+              id="latexInput"
+              spellcheck="false"
+              placeholder="Paste LaTeX code here..."
+            ></textarea>
+            <div class="action-row">
+              <div class="rewrite-controls" id="rewriteControls" hidden>
+                <label for="rewriteDepth">Rewrite mode</label>
+                <select id="rewriteDepth">
+                  <option value="light">Light</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="deep">Deep</option>
+                </select>
+                <label class="checkbox-label">
+                  <input id="includeMedium" type="checkbox" checked />
+                  Include MEDIUM
+                </label>
+              </div>
+              <button class="primary-button" id="runButton" type="button">Run</button>
+            </div>
+          </div>
+
+          <div class="panel output-panel">
+            <div class="panel-head">
+              <div>
+                <h2 id="outputTitle">Checker Results</h2>
+                <p id="outputSubtitle">Highlighted LaTeX preview and risk score.</p>
+              </div>
+              <button class="secondary-button" id="copyOutput" type="button">Copy Output</button>
+            </div>
+
+            <div id="warningBox" class="warning-box" hidden></div>
+
+            <section class="score-strip" id="scoreStrip">
+              <div>
+                <span class="metric-label">Overall score</span>
+                <strong id="scoreValue">0%</strong>
+              </div>
+              <div>
+                <span class="metric-label">Flagged sentences</span>
+                <strong id="flaggedCount">0</strong>
+              </div>
+              <div>
+                <span class="metric-label">Protected LaTeX</span>
+                <strong id="protectedCount">0</strong>
+              </div>
+            </section>
+
+            <div class="checker-view" id="checkerView">
+              <pre class="latex-preview" id="highlightedOutput"></pre>
+              <div class="risk-list" id="riskList"></div>
+            </div>
+
+            <div class="remover-view" id="removerView" hidden>
+              <div class="comparison-grid">
+                <div>
+                  <h3>Original</h3>
+                  <pre class="latex-preview muted" id="originalOutput"></pre>
+                </div>
+                <div>
+                  <h3>Rewritten LaTeX</h3>
+                  <pre class="latex-preview" id="rewrittenOutput"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
