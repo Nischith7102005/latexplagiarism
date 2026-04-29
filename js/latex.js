@@ -93,6 +93,22 @@ export function validateLatex(text) {
 export function buildLatexMask(text) {
   const mask = Array(text.length).fill(false);
   const protectedCommands = new Set([
+    "documentclass",
+    "usepackage",
+    "newcommand",
+    "renewcommand",
+    "providecommand",
+    "newenvironment",
+    "renewenvironment",
+    "def",
+    "let",
+    "setlength",
+    "addtolength",
+    "hspace",
+    "vspace",
+    "parbox",
+    "makebox",
+    "fbox",
     "cite",
     "citet",
     "citep",
@@ -109,7 +125,33 @@ export function buildLatexMask(text) {
     "input",
     "include",
   ]);
+  const inlineCodeCommands = new Set(["texttt", "verb", "lstinline", "mintinline", "code", "path"]);
   const mathEnvironments = new Set(["equation", "align", "align*", "gather", "gather*", "multline", "multline*"]);
+  const codeEnvironments = new Set([
+    "verbatim",
+    "verbatim*",
+    "lstlisting",
+    "minted",
+    "Verbatim",
+    "BVerbatim",
+    "LVerbatim",
+    "alltt",
+    "filecontents",
+    "filecontents*",
+    "algorithmic",
+    "algorithmicx",
+  ]);
+  const structuralEnvironments = new Set([
+    "tabular",
+    "tabular*",
+    "array",
+    "tikzpicture",
+    "picture",
+    "pgfpicture",
+    "figure",
+    "table",
+    "thebibliography",
+  ]);
 
   for (let i = 0; i < text.length; i += 1) {
     if (text[i] === "%") {
@@ -148,12 +190,27 @@ export function buildLatexMask(text) {
       const commandEnd = i + commandMatch[0].length;
       protectRange(mask, i, commandEnd);
 
+      if (command === "verb" || command === "lstinline") {
+        const end = findDelimitedCommandEnd(text, commandEnd);
+        protectRange(mask, i, end);
+        i = Math.max(i, end - 1);
+        continue;
+      }
+
+      if (command === "mintinline") {
+        const afterLanguage = protectRequiredArgs(text, mask, protectOptionalArgs(text, mask, commandEnd));
+        const end = findDelimitedCommandEnd(text, afterLanguage);
+        protectRange(mask, i, end);
+        i = Math.max(i, end - 1);
+        continue;
+      }
+
       if (command === "begin") {
         const braceStart = skipSpaces(text, commandEnd);
         if (text[braceStart] === "{") {
           const braceEnd = findClosingBrace(text, braceStart);
           const envName = braceEnd > braceStart ? text.slice(braceStart + 1, braceEnd) : "";
-          if (mathEnvironments.has(envName)) {
+          if (mathEnvironments.has(envName) || codeEnvironments.has(envName) || structuralEnvironments.has(envName)) {
             const closeTag = `\\end{${envName}}`;
             const envEnd = text.indexOf(closeTag, braceEnd + 1);
             protectRange(mask, i, envEnd === -1 ? text.length : envEnd + closeTag.length);
@@ -168,6 +225,11 @@ export function buildLatexMask(text) {
         cursor = protectOptionalArgs(text, mask, cursor);
         cursor = protectRequiredArgs(text, mask, cursor);
         i = Math.max(i, cursor - 1);
+      } else if (inlineCodeCommands.has(command.replace("*", ""))) {
+        let cursor = commandEnd;
+        cursor = protectOptionalArgs(text, mask, cursor);
+        cursor = protectRequiredArgs(text, mask, cursor);
+        i = Math.max(i, cursor - 1);
       }
     }
   }
@@ -177,6 +239,20 @@ export function buildLatexMask(text) {
   }
 
   return mask;
+}
+
+function findDelimitedCommandEnd(text, commandEnd) {
+  let cursor = skipSpaces(text, commandEnd);
+  if (cursor >= text.length) return text.length;
+
+  const delimiter = text[cursor];
+  if (delimiter === "{") {
+    const end = findClosingBrace(text, cursor);
+    return end === -1 ? text.length : end + 1;
+  }
+
+  const end = findUnescaped(text, delimiter, cursor + 1);
+  return end === -1 ? text.length : end + 1;
 }
 
 export function extractTextRuns(text, mask) {

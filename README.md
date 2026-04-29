@@ -14,6 +14,8 @@ The app is split into independent stages so each part can be scaled, updated, or
 4. Score plagiarism risk per sentence.
 5. Render checker output or rewrite only selected flagged text.
 
+Code-oriented content is skipped during extraction, including common environments such as `verbatim`, `lstlisting`, `minted`, `alltt`, and inline code commands such as `\verb`, `\lstinline`, `\mintinline`, and `\texttt`.
+
 ## Code Structure
 
 - `app.js` wires the UI to the workflow.
