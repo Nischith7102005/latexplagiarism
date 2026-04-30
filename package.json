@@ -1,0 +1,18 @@
+{
+  "name": "latex-plagiarism-checker",
+  "version": "1.0.0",
+  "description": "A browser-only LaTeX Plagiarism Checker & Remover application",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "latex",
+    "plagiarism",
+    "remover",
+    "static-site"
+  ],
+  "author": "",
+  "license": "MIT"
+}
