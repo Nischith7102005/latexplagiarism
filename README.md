@@ -20,6 +20,16 @@ The checker intentionally runs in a strict mode. It flags generic academic phras
 
 The remover rewrites only unprotected natural-language spans. If a risky sentence contains `\cite`, `\ref`, math, or other protected LaTeX, the surrounding prose can be rewritten while the protected LaTeX is preserved in place.
 
+## Deployment
+
+The app is automatically deployed to GitHub Pages on every push to the `master` branch via GitHub Actions.
+
+To host it yourself:
+1.  Fork the repository.
+2.  Go to **Settings > Pages**.
+3.  Set **Source** to **GitHub Actions**.
+4.  The workflow will take care of the rest.
+
 ## Code Structure
 
 - `app.js` wires the UI to the workflow.
