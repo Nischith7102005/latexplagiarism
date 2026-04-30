@@ -212,9 +212,84 @@ const stopwords = new Set([
   "between",
 ]);
 
+const conceptMap = {
+  approach: "method",
+  technique: "method",
+  methodology: "method",
+  framework: "method",
+  system: "method",
+  strategy: "method",
+  result: "outcome",
+  finding: "outcome",
+  consequence: "outcome",
+  output: "outcome",
+  effect: "outcome",
+  impact: "outcome",
+  study: "research",
+  investigation: "research",
+  analysis: "research",
+  examination: "research",
+  paper: "research",
+  article: "research",
+  work: "research",
+  improve: "enhance",
+  augment: "enhance",
+  boost: "enhance",
+  optimize: "enhance",
+  elevate: "enhance",
+  increase: "enhance",
+  show: "demonstrate",
+  indicate: "demonstrate",
+  suggest: "demonstrate",
+  prove: "demonstrate",
+  reveal: "demonstrate",
+  illustrate: "demonstrate",
+  use: "utilize",
+  employ: "utilize",
+  apply: "utilize",
+  harness: "utilize",
+  leverage: "utilize",
+  problem: "challenge",
+  issue: "challenge",
+  difficulty: "challenge",
+  obstacle: "challenge",
+  limitation: "challenge",
+  showcase: "present",
+  introduce: "present",
+  describe: "present",
+  discuss: "present",
+};
+
+function getNGrams(text, n = 3) {
+  const words = text.toLowerCase().match(/[a-z]{3,}/g) || [];
+  const ngrams = [];
+  for (let i = 0; i <= words.length - n; i++) {
+    ngrams.push(words.slice(i, i + n).join(" "));
+  }
+  return ngrams;
+}
+
+function getSemanticFingerprint(text) {
+  const words = text.toLowerCase().match(/[a-z]{3,}/g) || [];
+  return words
+    .map((word) => conceptMap[word] || word)
+    .filter((word) => !stopwords.has(word))
+    .join(" ");
+}
+
+function getStructuralType(details) {
+  const { academicTemplate, passiveTemplate, abstractClaim, introConclusionPattern } = details;
+  let type = "";
+  if (academicTemplate) type += "T";
+  if (passiveTemplate) type += "P";
+  if (abstractClaim) type += "C";
+  if (introConclusionPattern) type += "I";
+  return type || "N"; // N for Normal
+}
+
 export function scoreSentences(rawSentences) {
   const context = buildAnalysisContext(rawSentences);
-  const sentences = rawSentences.map((sentence) => analyzeSentence(sentence, context));
+  const sentences = rawSentences.map((sentence, index) => analyzeSentence(sentence, index, context));
   const flagged = sentences.filter((item) => item.level !== "LOW");
   const highCount = flagged.filter((item) => item.level === "HIGH").length;
   const weighted = sentences.length ? sentences.reduce((sum, item) => sum + item.score, 0) / sentences.length : 0;
@@ -227,7 +302,7 @@ export function scoreSentences(rawSentences) {
   return { sentences, flagged, overall };
 }
 
-function analyzeSentence(sentence, context = {}) {
+function analyzeSentence(sentence, index, context = {}) {
   const lower = sentence.text.toLowerCase();
   const words = lower.match(/[a-z]{3,}/g) || [];
   const unique = new Set(words);
@@ -251,6 +326,21 @@ function analyzeSentence(sentence, context = {}) {
   const citationMissingForClaim = (abstractClaim || broadOutcome || academicTemplate) && specificSignals === 0 && words.length > 12;
   const polishedButVague = vagueAdjectiveHits >= 2 && fillerHits >= 2;
 
+  // New layer details
+  const ngrams = getNGrams(sentence.text);
+  const semanticFingerprint = getSemanticFingerprint(sentence.text);
+  const structuralType = getStructuralType({ academicTemplate, passiveTemplate, abstractClaim, introConclusionPattern });
+
+  // Calculate overlaps/frequencies from context
+  const ngramOverlap = ngrams.filter((ng) => context.ngramFreqs && context.ngramFreqs[ng] > 1).length;
+  const isSemanticDuplicate = context.semanticFreqs && context.semanticFreqs[semanticFingerprint] > 1;
+
+  let structuralMonotony = false;
+  if (context.structuralFlow && index >= 2) {
+    const flow = context.structuralFlow.slice(index - 2, index + 1).join("-");
+    if (context.flowFreqs[flow] > 1) structuralMonotony = true;
+  }
+
   let score = context.academicDensity > 0.2 ? 26 : 18;
   score += Math.min(genericMatches.length * 22, 66);
   score += Math.min(markerMatches.length * 9, 36);
@@ -273,6 +363,12 @@ function analyzeSentence(sentence, context = {}) {
   score += context.transitionDensity > 0.14 ? 10 : 0;
   score += context.genericPhraseDensity > 0.08 ? 10 : 0;
   score += context.repeatedStemDensity > 0.08 ? 6 : 0;
+
+  // New layer scoring
+  score += Math.min(ngramOverlap * 15, 45);
+  score += isSemanticDuplicate ? 25 : 0;
+  score += structuralMonotony ? 15 : 0;
+
   score -= Math.min(specificSignals * 3, 10);
   score = Math.max(0, Math.min(100, Math.round(score)));
 
@@ -290,6 +386,9 @@ function analyzeSentence(sentence, context = {}) {
     specificSignals,
     citationMissingForClaim,
     polishedButVague,
+    ngramOverlap,
+    isSemanticDuplicate,
+    structuralMonotony,
   });
   return { ...sentence, score, level, explanation };
 }
@@ -304,6 +403,37 @@ function buildAnalysisContext(sentences) {
     return sum + sentences.reduce((count, sentence) => count + (sentence.text.match(pattern) || []).length, 0);
   }, 0);
 
+  // Build layer frequency maps
+  const ngramFreqs = {};
+  const semanticFreqs = {};
+  const structuralFlow = [];
+
+  sentences.forEach((s) => {
+    getNGrams(s.text).forEach((ng) => {
+      ngramFreqs[ng] = (ngramFreqs[ng] || 0) + 1;
+    });
+    const finger = getSemanticFingerprint(s.text);
+    if (finger.split(" ").length > 3) {
+      semanticFreqs[finger] = (semanticFreqs[finger] || 0) + 1;
+    }
+
+    const details = {
+      academicTemplate: /\b(this paper|this study|this research|the results|in conclusion|we propose|it is shown|it can be seen|the proposed|the system|the model|the method)\b/i.test(
+        s.text,
+      ),
+      passiveTemplate: /\b(is|are|was|were|has been|have been|can be|could be|may be)\s+\w+ed\b/i.test(s.text),
+      abstractClaim: /\b(improve|enhance|increase|reduce|optimize|support|provide|enable|ensure|achieve|address|contribute)\w*\b/i.test(s.text),
+      introConclusionPattern: /\b(due to|because of|in order to|with the help of|based on|according to|in the field of|in the area of)\b/i.test(s.text),
+    };
+    structuralFlow.push(getStructuralType(details));
+  });
+
+  const flowFreqs = {};
+  for (let i = 0; i <= structuralFlow.length - 3; i++) {
+    const flow = structuralFlow.slice(i, i + 3).join("-");
+    flowFreqs[flow] = (flowFreqs[flow] || 0) + 1;
+  }
+
   return {
     academicDensity: words.length ? fillerHits / words.length : 0,
     transitionDensity: sentences.length ? markerHits / sentences.length : 0,
@@ -311,6 +441,10 @@ function buildAnalysisContext(sentences) {
     genericPhraseDensity: sentences.length
       ? genericPhrases.reduce((sum, phrase) => sum + sentences.filter((sentence) => sentence.text.toLowerCase().includes(phrase)).length, 0) / sentences.length
       : 0,
+    ngramFreqs,
+    semanticFreqs,
+    structuralFlow,
+    flowFreqs,
   };
 }
 
@@ -328,8 +462,14 @@ function buildExplanation(details) {
     specificSignals,
     citationMissingForClaim,
     polishedButVague,
+    ngramOverlap,
+    isSemanticDuplicate,
+    structuralMonotony,
   } = details;
   const parts = [];
+  if (ngramOverlap >= 2) parts.push("Significant word-pattern overlap with other parts of this document.");
+  if (isSemanticDuplicate) parts.push("Matches the semantic structure and concept map of another sentence.");
+  if (structuralMonotony) parts.push("Follows a repetitive 3-sentence structural flow found elsewhere.");
   if (genericMatches.length) parts.push(`Matches common academic phrasing: ${genericMatches.slice(0, 2).join(", ")}.`);
   if (markerMatches.length) parts.push(`Uses AI-like transition or polish markers: ${markerMatches.slice(0, 2).join(", ")}.`);
   if (fillerHits >= 2) parts.push("Contains broad academic nouns with limited concrete detail.");

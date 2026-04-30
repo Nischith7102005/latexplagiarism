@@ -89,9 +89,12 @@ function renderRiskList(sentences) {
     .map((item) => {
       const level = item.level.toLowerCase();
       return `<article class="risk-item risk-${level}">
-        <strong><span class="label ${level}">${item.level}</span> ${item.score}% sentence risk</strong>
+        <div class="risk-header">
+          <strong><span class="label ${level}">${item.level}</span> ${item.score}% sentence risk</strong>
+          <button class="search-button" title="Verify exact phrase on Google" data-sentence="${escapeHtml(item.text)}">Verify on Web</button>
+        </div>
         <p>${escapeHtml(item.explanation)}</p>
-        <p>${escapeHtml(item.text)}</p>
+        <p class="sentence-text">${escapeHtml(item.text)}</p>
       </article>`;
     })
     .join("");
@@ -176,6 +179,14 @@ elements.copyOutput.addEventListener("click", async () => {
   setTimeout(() => {
     elements.copyOutput.textContent = original;
   }, 1100);
+});
+
+elements.riskList.addEventListener("click", (e) => {
+  const btn = e.target.closest(".search-button");
+  if (!btn) return;
+  const sentence = btn.dataset.sentence;
+  const query = encodeURIComponent(`"${sentence}"`);
+  window.open(`https://www.google.com/search?q=${query}`, "_blank");
 });
 
 elements.input.value = sampleLatex;
