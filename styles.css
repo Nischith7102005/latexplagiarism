@@ -330,6 +330,39 @@ select {
   padding: 10px 12px;
 }
 
+.risk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.search-button {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--accent);
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.search-button:hover {
+  background: var(--soft);
+  border-color: var(--accent);
+}
+
+.sentence-text {
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 6px 10px;
+  color: var(--code) !important;
+  font-family: "Cascadia Mono", monospace;
+  font-size: 0.8rem !important;
+}
+
 .risk-item strong {
   font-size: 0.86rem;
 }
