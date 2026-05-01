@@ -66,6 +66,22 @@ function protectRequiredArgs(text, mask, index) {
   return cursor;
 }
 
+function maskAllArgs(text, mask, index) {
+  let cursor = skipSpaces(text, index);
+  while (cursor < text.length && (text[cursor] === "[" || text[cursor] === "{")) {
+    if (text[cursor] === "[") {
+      const end = findBalanced(text, cursor, "[", "]");
+      protectRange(mask, cursor, end === -1 ? text.length : end + 1);
+      cursor = skipSpaces(text, end === -1 ? text.length : end + 1);
+    } else {
+      const end = findClosingBrace(text, cursor);
+      protectRange(mask, cursor, end === -1 ? text.length : end + 1);
+      cursor = skipSpaces(text, end === -1 ? text.length : end + 1);
+    }
+  }
+  return cursor;
+}
+
 export function validateLatex(text) {
   const warnings = [];
   const begins = [...text.matchAll(/\\begin\{([^}]+)\}/g)].map((match) => match[1]);
@@ -92,40 +108,31 @@ export function validateLatex(text) {
 
 export function buildLatexMask(text) {
   const mask = Array(text.length).fill(false);
-  const protectedCommands = new Set([
-    "documentclass",
-    "usepackage",
-    "newcommand",
-    "renewcommand",
-    "providecommand",
-    "newenvironment",
-    "renewenvironment",
-    "def",
-    "let",
-    "setlength",
-    "addtolength",
-    "hspace",
-    "vspace",
-    "parbox",
-    "makebox",
-    "fbox",
-    "cite",
-    "citet",
-    "citep",
-    "ref",
-    "eqref",
-    "label",
-    "url",
-    "href",
-    "includegraphics",
-    "bibliography",
-    "bibliographystyle",
-    "begin",
-    "end",
-    "input",
-    "include",
+  const TEXT_COMMANDS = new Set([
+    "section",
+    "subsection",
+    "subsubsection",
+    "paragraph",
+    "subparagraph",
+    "chapter",
+    "part",
+    "caption",
+    "footnote",
+    "thanks",
+    "textbf",
+    "textit",
+    "emph",
+    "text",
+    "textsc",
+    "textsl",
+    "textsf",
+    "textmd",
+    "textup",
+    "title",
+    "author",
+    "date",
+    "item",
   ]);
-  const inlineCodeCommands = new Set(["texttt", "verb", "lstinline", "mintinline", "code", "path"]);
   const mathEnvironments = new Set(["equation", "align", "align*", "gather", "gather*", "multline", "multline*"]);
   const codeEnvironments = new Set([
     "verbatim",
@@ -148,9 +155,6 @@ export function buildLatexMask(text) {
     "tikzpicture",
     "picture",
     "pgfpicture",
-    "figure",
-    "table",
-    "thebibliography",
   ]);
 
   for (let i = 0; i < text.length; i += 1) {
@@ -220,15 +224,12 @@ export function buildLatexMask(text) {
         }
       }
 
-      if (protectedCommands.has(command.replace("*", ""))) {
-        let cursor = commandEnd;
-        cursor = protectOptionalArgs(text, mask, cursor);
-        cursor = protectRequiredArgs(text, mask, cursor);
+      const baseCommand = command.replace(/\*$/, "");
+      if (TEXT_COMMANDS.has(baseCommand)) {
+        const cursor = protectOptionalArgs(text, mask, commandEnd);
         i = Math.max(i, cursor - 1);
-      } else if (inlineCodeCommands.has(command.replace("*", ""))) {
-        let cursor = commandEnd;
-        cursor = protectOptionalArgs(text, mask, cursor);
-        cursor = protectRequiredArgs(text, mask, cursor);
+      } else {
+        const cursor = maskAllArgs(text, mask, commandEnd);
         i = Math.max(i, cursor - 1);
       }
     }
@@ -275,18 +276,18 @@ export function extractTextRuns(text, mask) {
   };
 
   for (let i = 0; i < text.length; i += 1) {
-    if (mask[i]) {
-      pendingProtectedSpace = true;
-      continue;
-    }
-
     const char = text[i];
     const previousChar = text[i - 1] || "";
     const nextChar = text[i + 1] || "";
     const blankLine = char === "\n" && previousChar === "\n";
-    const commandBoundary = char === "\\" && /^\\(section|subsection|subsubsection|chapter|paragraph|item|caption|title|author)\b/.test(text.slice(i));
+    const commandBoundary = char === "\\" && /^\\(section|subsection|subsubsection|chapter|paragraph|subparagraph|part|item|caption|title|author|thanks)\b/.test(text.slice(i));
 
     if (blankLine || commandBoundary) flush();
+
+    if (mask[i]) {
+      pendingProtectedSpace = true;
+      continue;
+    }
 
     if (pendingProtectedSpace && value && !/\s$/.test(value)) {
       value += " ";
