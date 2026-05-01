@@ -131,6 +131,11 @@ async function run() {
         depth: elements.rewriteDepth.value,
         includeMedium: elements.includeMedium.checked,
       },
+      {
+        onStep: (step, status, detail) => {
+          elements.latexStatus.textContent = detail || step;
+        },
+      },
     );
 
     if (runId !== state.latestRunId) return;
