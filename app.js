@@ -26,7 +26,6 @@ const elements = {
   rewriteControls: document.querySelector("#rewriteControls"),
   rewriteDepth: document.querySelector("#rewriteDepth"),
   includeMedium: document.querySelector("#includeMedium"),
-  authButton: document.querySelector("#authButton"),
 };
 
 const state = {
@@ -34,28 +33,6 @@ const state = {
   lastOutput: "",
   latestRunId: 0,
 };
-
-function updateAuthUI() {
-  const isSignedIn = puter?.auth?.isSignedIn?.() ?? false;
-  elements.authButton.textContent = isSignedIn ? "Sign Out" : "Sign In";
-  elements.authButton.setAttribute("data-signed-in", String(isSignedIn));
-}
-
-if (typeof puter !== "undefined" && puter.auth) {
-  puter.auth.on_auth_state_change(() => {
-    updateAuthUI();
-  });
-  updateAuthUI();
-}
-
-elements.authButton.addEventListener("click", async () => {
-  const isSignedIn = puter?.auth?.isSignedIn?.() ?? false;
-  if (isSignedIn) {
-    await puter.auth.signOut();
-  } else {
-    await puter.auth.signIn();
-  }
-});
 
 function setMode(mode) {
   state.mode = mode;
@@ -146,8 +123,6 @@ async function run() {
   elements.runButton.disabled = true;
   elements.latexStatus.textContent = "Processing";
 
-  const useAI = puter?.auth?.isSignedIn?.() ?? false;
-
   try {
     const result = await runWorkflow(
       text,
@@ -155,7 +130,6 @@ async function run() {
       {
         depth: elements.rewriteDepth.value,
         includeMedium: elements.includeMedium.checked,
-        useAI,
       },
       {
         onStep: (step, status, detail) => {
