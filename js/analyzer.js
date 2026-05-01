@@ -287,10 +287,11 @@ function getStructuralType(details) {
   return type || "N"; // N for Normal
 }
 
-export async function scoreSentences(rawSentences, onProgress) {
+export async function scoreSentences(rawSentences, useAI, onProgress) {
   const context = buildAnalysisContext(rawSentences);
   const sentences = [];
   const BATCH_SIZE = 10;
+  let aiFailed = false;
 
   for (let i = 0; i < rawSentences.length; i += BATCH_SIZE) {
     const batch = rawSentences.slice(i, i + BATCH_SIZE);
@@ -298,23 +299,35 @@ export async function scoreSentences(rawSentences, onProgress) {
       onProgress(`Analyzing sentences ${i + 1} to ${Math.min(i + BATCH_SIZE, rawSentences.length)}...`);
     }
 
-    const aiResults = await analyzeBatchWithAI(batch);
+    let aiResults = null;
+    if (useAI && !aiFailed) {
+      aiResults = await analyzeBatchWithAI(batch);
+      if (aiResults === null) {
+        aiFailed = true;
+      }
+    }
 
     batch.forEach((sentence, batchIdx) => {
       const localResult = analyzeSentenceLocal(sentence, i + batchIdx, context);
-      const aiResult = aiResults[batchIdx] || { score: localResult.score, explanation: localResult.explanation };
 
-      // Combine AI score with local context score
-      // AI provides semantic insight, local provides document-wide context (repetition, structural flow)
-      const combinedScore = Math.round(aiResult.score * 0.7 + localResult.score * 0.3);
-      const level = combinedScore >= 56 ? "HIGH" : combinedScore >= 24 ? "MEDIUM" : "LOW";
-
-      sentences.push({
-        ...sentence,
-        score: combinedScore,
-        level: level,
-        explanation: aiResult.explanation || localResult.explanation,
-      });
+      if (aiResults && aiResults[batchIdx]) {
+        const aiResult = aiResults[batchIdx];
+        const combinedScore = Math.round(aiResult.score * 0.7 + localResult.score * 0.3);
+        const level = combinedScore >= 56 ? "HIGH" : combinedScore >= 24 ? "MEDIUM" : "LOW";
+        sentences.push({
+          ...sentence,
+          score: combinedScore,
+          level: level,
+          explanation: aiResult.explanation || localResult.explanation,
+        });
+      } else {
+        sentences.push({
+          ...sentence,
+          score: localResult.score,
+          level: localResult.level,
+          explanation: localResult.explanation,
+        });
+      }
     });
   }
 
@@ -327,7 +340,12 @@ export async function scoreSentences(rawSentences, onProgress) {
   const strictDocumentPenalty = Math.min(18, context.repeatedStemDensity * 120 + context.genericPhraseDensity * 80);
   const overall = Math.min(100, Math.round(weighted * 0.7 + flaggedRatio * 28 + highRatio * 22 + maxSentence * 0.2 + strictDocumentPenalty));
 
-  return { sentences, flagged, overall };
+  const warnings = [];
+  if (aiFailed) {
+    warnings.push("AI analysis unavailable, using local heuristics only.");
+  }
+
+  return { sentences, flagged, overall, warnings };
 }
 
 async function analyzeBatchWithAI(batch) {
@@ -353,7 +371,7 @@ Respond with valid JSON array only.`;
   } catch (err) {
     console.error("AI Analysis failed:", err);
   }
-  return [];
+  return null;
 }
 
 function analyzeSentenceLocal(sentence, index, context = {}) {
