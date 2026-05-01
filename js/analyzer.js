@@ -127,7 +127,7 @@ const academicFillers = [
   "workflow",
 ];
 
-const aiStyleMarkers = [
+export const aiStyleMarkers = [
   "additionally",
   "furthermore",
   "moreover",
@@ -167,7 +167,7 @@ const aiStyleMarkers = [
   "cutting-edge",
 ];
 
-const vagueAdjectives = new Set([
+export const vagueAdjectives = new Set([
   "advanced",
   "automated",
   "better",
@@ -212,7 +212,7 @@ const stopwords = new Set([
   "between",
 ]);
 
-const conceptMap = {
+export const conceptMap = {
   approach: "method",
   technique: "method",
   methodology: "method",
@@ -287,11 +287,10 @@ function getStructuralType(details) {
   return type || "N"; // N for Normal
 }
 
-export async function scoreSentences(rawSentences, useAI, onProgress) {
+export async function scoreSentences(rawSentences, onProgress) {
   const context = buildAnalysisContext(rawSentences);
   const sentences = [];
   const BATCH_SIZE = 10;
-  let aiFailed = false;
 
   for (let i = 0; i < rawSentences.length; i += BATCH_SIZE) {
     const batch = rawSentences.slice(i, i + BATCH_SIZE);
@@ -299,35 +298,14 @@ export async function scoreSentences(rawSentences, useAI, onProgress) {
       onProgress(`Analyzing sentences ${i + 1} to ${Math.min(i + BATCH_SIZE, rawSentences.length)}...`);
     }
 
-    let aiResults = null;
-    if (useAI && !aiFailed) {
-      aiResults = await analyzeBatchWithAI(batch);
-      if (aiResults === null) {
-        aiFailed = true;
-      }
-    }
-
     batch.forEach((sentence, batchIdx) => {
       const localResult = analyzeSentenceLocal(sentence, i + batchIdx, context);
-
-      if (aiResults && aiResults[batchIdx]) {
-        const aiResult = aiResults[batchIdx];
-        const combinedScore = Math.round(aiResult.score * 0.7 + localResult.score * 0.3);
-        const level = combinedScore >= 56 ? "HIGH" : combinedScore >= 24 ? "MEDIUM" : "LOW";
-        sentences.push({
-          ...sentence,
-          score: combinedScore,
-          level: level,
-          explanation: aiResult.explanation || localResult.explanation,
-        });
-      } else {
-        sentences.push({
-          ...sentence,
-          score: localResult.score,
-          level: localResult.level,
-          explanation: localResult.explanation,
-        });
-      }
+      sentences.push({
+        ...sentence,
+        score: localResult.score,
+        level: localResult.level,
+        explanation: localResult.explanation,
+      });
     });
   }
 
@@ -340,38 +318,7 @@ export async function scoreSentences(rawSentences, useAI, onProgress) {
   const strictDocumentPenalty = Math.min(18, context.repeatedStemDensity * 120 + context.genericPhraseDensity * 80);
   const overall = Math.min(100, Math.round(weighted * 0.7 + flaggedRatio * 28 + highRatio * 22 + maxSentence * 0.2 + strictDocumentPenalty));
 
-  const warnings = [];
-  if (aiFailed) {
-    warnings.push("AI analysis unavailable, using local heuristics only.");
-  }
-
-  return { sentences, flagged, overall, warnings };
-}
-
-async function analyzeBatchWithAI(batch) {
-  const prompt = `Act as an expert academic plagiarism and AI-content analyzer. 
-Analyze the following ${batch.length} sentences extracted from a LaTeX document for plagiarism risk, "AI-like" genericness, and academic integrity.
-Return ONLY a JSON array of objects, one for each sentence in the exact order provided.
-Each object must have:
-- "score": a number from 0 to 100 (where 0 is original/specific and 100 is highly generic/plagiarized/AI-generated)
-- "explanation": a brief (one sentence) explanation of the risk.
-
-Sentences:
-${batch.map((s, i) => `${i + 1}. "${s.text}"`).join("\n")}
-
-Respond with valid JSON array only.`;
-
-  try {
-    const response = await puter.ai.chat(prompt);
-    const content = response.toString();
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-  } catch (err) {
-    console.error("AI Analysis failed:", err);
-  }
-  return null;
+  return { sentences, flagged, overall };
 }
 
 function analyzeSentenceLocal(sentence, index, context = {}) {
