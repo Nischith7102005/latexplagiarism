@@ -28,12 +28,14 @@ export async function runWorkflow(text, mode, options, hooks = {}) {
   await notify("extract", rawSentences.length ? "done" : "warning", `${rawSentences.length} sentence(s)`);
 
   await notify("score", "running", "Scoring risk");
-  const scored = scoreSentences(rawSentences);
+  const scored = await scoreSentences(rawSentences, (msg) => {
+    notify("score", "running", msg);
+  });
   const analysis = { warnings, mask, protectedChars, ...scored };
   await notify("score", "done", `${analysis.flagged.length} flagged`);
 
   await notify("output", "running", mode === "checker" ? "Rendering highlights" : "Rewriting flagged text");
-  const rewrite = mode === "remover" ? rewriteLatex(text, analysis, options) : null;
+  const rewrite = mode === "remover" ? await rewriteLatex(text, analysis, options) : null;
   await notify("output", "done", rewrite ? `${rewrite.changes} changed` : `${analysis.overall}% score`);
 
   return { analysis, rewrite };

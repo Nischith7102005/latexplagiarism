@@ -287,9 +287,37 @@ function getStructuralType(details) {
   return type || "N"; // N for Normal
 }
 
-export function scoreSentences(rawSentences) {
+export async function scoreSentences(rawSentences, onProgress) {
   const context = buildAnalysisContext(rawSentences);
-  const sentences = rawSentences.map((sentence, index) => analyzeSentence(sentence, index, context));
+  const sentences = [];
+  const BATCH_SIZE = 10;
+
+  for (let i = 0; i < rawSentences.length; i += BATCH_SIZE) {
+    const batch = rawSentences.slice(i, i + BATCH_SIZE);
+    if (onProgress) {
+      onProgress(`Analyzing sentences ${i + 1} to ${Math.min(i + BATCH_SIZE, rawSentences.length)}...`);
+    }
+
+    const aiResults = await analyzeBatchWithAI(batch);
+
+    batch.forEach((sentence, batchIdx) => {
+      const localResult = analyzeSentenceLocal(sentence, i + batchIdx, context);
+      const aiResult = aiResults[batchIdx] || { score: localResult.score, explanation: localResult.explanation };
+
+      // Combine AI score with local context score
+      // AI provides semantic insight, local provides document-wide context (repetition, structural flow)
+      const combinedScore = Math.round(aiResult.score * 0.7 + localResult.score * 0.3);
+      const level = combinedScore >= 56 ? "HIGH" : combinedScore >= 24 ? "MEDIUM" : "LOW";
+
+      sentences.push({
+        ...sentence,
+        score: combinedScore,
+        level: level,
+        explanation: aiResult.explanation || localResult.explanation,
+      });
+    });
+  }
+
   const flagged = sentences.filter((item) => item.level !== "LOW");
   const highCount = flagged.filter((item) => item.level === "HIGH").length;
   const weighted = sentences.length ? sentences.reduce((sum, item) => sum + item.score, 0) / sentences.length : 0;
@@ -302,7 +330,33 @@ export function scoreSentences(rawSentences) {
   return { sentences, flagged, overall };
 }
 
-function analyzeSentence(sentence, index, context = {}) {
+async function analyzeBatchWithAI(batch) {
+  const prompt = `Act as an expert academic plagiarism and AI-content analyzer. 
+Analyze the following ${batch.length} sentences extracted from a LaTeX document for plagiarism risk, "AI-like" genericness, and academic integrity.
+Return ONLY a JSON array of objects, one for each sentence in the exact order provided.
+Each object must have:
+- "score": a number from 0 to 100 (where 0 is original/specific and 100 is highly generic/plagiarized/AI-generated)
+- "explanation": a brief (one sentence) explanation of the risk.
+
+Sentences:
+${batch.map((s, i) => `${i + 1}. "${s.text}"`).join("\n")}
+
+Respond with valid JSON array only.`;
+
+  try {
+    const response = await puter.ai.chat(prompt);
+    const content = response.toString();
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+  } catch (err) {
+    console.error("AI Analysis failed:", err);
+  }
+  return [];
+}
+
+function analyzeSentenceLocal(sentence, index, context = {}) {
   const lower = sentence.text.toLowerCase();
   const words = lower.match(/[a-z]{3,}/g) || [];
   const unique = new Set(words);
