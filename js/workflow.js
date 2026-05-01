@@ -28,10 +28,14 @@ export async function runWorkflow(text, mode, options, hooks = {}) {
   await notify("extract", rawSentences.length ? "done" : "warning", `${rawSentences.length} sentence(s)`);
 
   await notify("score", "running", "Scoring risk");
-  const scored = await scoreSentences(rawSentences, (msg) => {
+  const scored = await scoreSentences(rawSentences, options.useAI, (msg) => {
     notify("score", "running", msg);
   });
-  const analysis = { warnings, mask, protectedChars, ...scored };
+  const scoredWarnings = scored.warnings || [];
+  if (!options.useAI) {
+    scoredWarnings.push("AI features disabled: Sign in for enhanced plagiarism detection.");
+  }
+  const analysis = { warnings: [...warnings, ...scoredWarnings], mask, protectedChars, sentences: scored.sentences, flagged: scored.flagged, overall: scored.overall };
   await notify("score", "done", `${analysis.flagged.length} flagged`);
 
   await notify("output", "running", mode === "checker" ? "Rendering highlights" : "Rewriting flagged text");

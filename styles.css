@@ -60,6 +60,12 @@ select {
   gap: 18px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--accent);

@@ -9,7 +9,7 @@ export async function rewriteLatex(text, analysis, options) {
 
   for (const sentence of selected) {
     const original = text.slice(sentence.start, sentence.end);
-    const rewritten = await rewriteRangePreservingLatex(text, sentence, analysis.mask, options.depth);
+    const rewritten = await rewriteRangePreservingLatex(text, sentence, analysis.mask, options);
     output += text.slice(cursor, sentence.start);
     output += rewritten;
     cursor = sentence.end;
@@ -21,10 +21,10 @@ export async function rewriteLatex(text, analysis, options) {
   return { output, changes, skipped };
 }
 
-async function rewriteRangePreservingLatex(text, sentence, mask, depth) {
+async function rewriteRangePreservingLatex(text, sentence, mask, options) {
   const original = text.slice(sentence.start, sentence.end);
   if (!mask.slice(sentence.start, sentence.end).some(Boolean)) {
-    return await rewritePlainText(original, depth);
+    return await rewritePlainText(original, options);
   }
 
   let result = "";
@@ -35,38 +35,40 @@ async function rewriteRangePreservingLatex(text, sentence, mask, depth) {
     let next = cursor + 1;
     while (next < sentence.end && mask[next] === protectedNow) next += 1;
     const chunk = text.slice(cursor, next);
-    result += protectedNow ? chunk : await rewriteTextChunk(chunk, depth);
+    result += protectedNow ? chunk : await rewriteTextChunk(chunk, options);
     cursor = next;
   }
 
   return normalizeSpacingAroundProtected(result);
 }
 
-async function rewriteTextChunk(chunk, depth) {
+async function rewriteTextChunk(chunk, options) {
   if (!/[A-Za-z]{4}/.test(chunk)) return chunk;
-  return await rewritePlainText(chunk, depth);
+  return await rewritePlainText(chunk, options);
 }
 
-async function rewritePlainText(value, depth) {
+async function rewritePlainText(value, options) {
   const leading = value.match(/^\s*/)[0];
   const trailing = value.match(/\s*$/)[0];
   const textToRewrite = value.trim();
 
   if (textToRewrite.length < 5) return value;
 
+  if (!options.useAI) return value;
+
   const prompt = `Rewrite the following academic sentence to be more original and less generic, while maintaining its meaning and formal tone.
-Rewrite Depth: ${depth} (light: minor changes, medium: significant restructuring, deep: complete paraphrase)
+Rewrite Depth: ${options.depth} (light: minor changes, medium: significant restructuring, deep: complete paraphrase)
 Original: "${textToRewrite}"
 Respond ONLY with the rewritten sentence.`;
 
   try {
     const response = await puter.ai.chat(prompt);
     let rewritten = response.toString().trim();
-    // Remove quotes if the AI added them
     rewritten = rewritten.replace(/^["']|["']$/g, "");
     return leading + rewritten + trailing;
   } catch (err) {
     console.error("AI Rewriting failed:", err);
+    options.useAI = false;
     return value;
   }
 }
