@@ -288,6 +288,7 @@ function getStructuralType(details) {
 }
 
 export async function scoreSentences(rawSentences, onProgress) {
+  if (!rawSentences.length) return { sentences: [], flagged: [], overall: 0 };
   const context = buildAnalysisContext(rawSentences);
   const sentences = [];
   const BATCH_SIZE = 10;
