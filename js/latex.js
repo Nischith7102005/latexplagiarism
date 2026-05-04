@@ -108,7 +108,9 @@ export function validateLatex(text) {
 
 export function buildLatexMask(text) {
   const mask = Array(text.length).fill(false);
-  const TEXT_COMMANDS = new Set([
+  const boundaries = Array(text.length).fill(false);
+
+  const BLOCK_COMMANDS = new Set([
     "section",
     "subsection",
     "subsubsection",
@@ -119,6 +121,13 @@ export function buildLatexMask(text) {
     "caption",
     "footnote",
     "thanks",
+    "title",
+    "author",
+    "date",
+    "item",
+  ]);
+
+  const INLINE_TEXT_COMMANDS = new Set([
     "textbf",
     "textit",
     "emph",
@@ -128,11 +137,8 @@ export function buildLatexMask(text) {
     "textsf",
     "textmd",
     "textup",
-    "title",
-    "author",
-    "date",
-    "item",
   ]);
+
   const mathEnvironments = new Set(["equation", "align", "align*", "gather", "gather*", "multline", "multline*"]);
   const codeEnvironments = new Set([
     "verbatim",
@@ -225,7 +231,22 @@ export function buildLatexMask(text) {
       }
 
       const baseCommand = command.replace(/\*$/, "");
-      if (TEXT_COMMANDS.has(baseCommand)) {
+      if (BLOCK_COMMANDS.has(baseCommand)) {
+        boundaries[i] = true;
+        const cursor = protectOptionalArgs(text, mask, commandEnd);
+        // Also find the end of the required arguments to set a boundary
+        let endCursor = cursor;
+        while (text[endCursor] === "{") {
+          const end = findClosingBrace(text, endCursor);
+          if (end !== -1) {
+            endCursor = skipSpaces(text, end + 1);
+          } else {
+            endCursor = text.length;
+          }
+        }
+        if (endCursor < text.length) boundaries[endCursor] = true;
+        i = Math.max(i, cursor - 1);
+      } else if (INLINE_TEXT_COMMANDS.has(baseCommand)) {
         const cursor = protectOptionalArgs(text, mask, commandEnd);
         i = Math.max(i, cursor - 1);
       } else {
@@ -236,10 +257,10 @@ export function buildLatexMask(text) {
   }
 
   for (let i = 0; i < text.length; i += 1) {
-    if ("{}[]".includes(text[i])) mask[i] = true;
+    if ("{}[]&%#_^~".includes(text[i])) mask[i] = true;
   }
 
-  return mask;
+  return { mask, boundaries };
 }
 
 function findDelimitedCommandEnd(text, commandEnd) {
@@ -256,7 +277,7 @@ function findDelimitedCommandEnd(text, commandEnd) {
   return end === -1 ? text.length : end + 1;
 }
 
-export function extractTextRuns(text, mask) {
+export function extractTextRuns(text, mask, boundaries = []) {
   const runs = [];
   let value = "";
   let map = [];
@@ -280,9 +301,9 @@ export function extractTextRuns(text, mask) {
     const previousChar = text[i - 1] || "";
     const nextChar = text[i + 1] || "";
     const blankLine = char === "\n" && previousChar === "\n";
-    const commandBoundary = char === "\\" && /^\\(section|subsection|subsubsection|chapter|paragraph|subparagraph|part|item|caption|title|author|thanks)\b/.test(text.slice(i));
+    const isBoundary = boundaries[i] === true;
 
-    if (blankLine || commandBoundary) flush();
+    if (blankLine || isBoundary) flush();
 
     if (mask[i]) {
       pendingProtectedSpace = true;

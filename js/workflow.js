@@ -18,12 +18,12 @@ export async function runWorkflow(text, mode, options, hooks = {}) {
   await notify("validate", warnings.length ? "warning" : "done", warnings.length ? `${warnings.length} warning(s)` : "Valid enough");
 
   await notify("protect", "running", "Protecting commands");
-  const mask = buildLatexMask(text);
+  const { mask, boundaries } = buildLatexMask(text);
   const protectedChars = mask.filter(Boolean).length;
   await notify("protect", "done", `${protectedChars} protected`);
 
   await notify("extract", "running", "Finding readable text");
-  const runs = extractTextRuns(text, mask);
+  const runs = extractTextRuns(text, mask, boundaries);
   const rawSentences = splitSentences(runs);
   await notify("extract", rawSentences.length ? "done" : "warning", `${rawSentences.length} sentence(s)`);
 
